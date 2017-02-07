@@ -1,5 +1,7 @@
 MemAdmin
 
+	git clone https://github.com/junstor/memadmin.git
+
     基于 PHP5 & JQuery 的 Memcached 管理监控工具
 
     MemAdmin是一款可视化的Memcached管理与监控工具，使用PHP开发，体积小，操作简单。
@@ -14,4 +16,6 @@ MemAdmin
         兼容memcache协议的其他服务，如Tokyo Tyrant (遍历功能除外)
         支持服务器连接池，多服务器管理切换方便简洁
 
-    Git https://github.com/junstor/memadmin.git
+phpRedisAdmin
+	
+	git clone https://github.com/ErikDubbelboer/phpRedisAdmin.git
