@@ -1,0 +1,38 @@
+###########################
+## 安装服务端和php客户端 ##
+###########################
+1 下载服务端 http://www.mongodb.org/downloads（在 MongoDB2.2 版本后已经不再支持 Windows XP 系统。）安装
+2 MongoDB将数据目录存储在 db 目录下。但是这个数据目录不会主动创建，我们在安装完成后需要创建它。请注意，数据目录应该放在根目录下（(如： C:\ 或者 D:\ 等 )。
+  例如 D:\mongodbdata\db
+3 运行
+    ① 命令行模式运行 mongod.exe --dbpath c:\data\db
+	② 将MongoDB服务器作为Windows服务运行
+		mongod.exe --bind_ip 127.0.0.1 --logpath "D:\mongodbdata\mongodb.log" --logappend --dbpath "D:\mongodbdata\db" --port 27017 --serviceName "mongodbd" --serviceDisplayName "mongod" --install
+	下表为mongodb启动的参数说明：
+	参数 					描述
+	--bind_ip 				绑定服务IP，若绑定127.0.0.1，则只能本机访问，不指定默认本地所有IP
+	--logpath 				定MongoDB日志文件，注意是指定文件不是目录
+	--logappend 			使用追加的方式写日志
+	--dbpath 				指定数据库路径
+	--port 					指定服务端口号，默认端口27017
+	--serviceName 			指定服务名称
+	--serviceDisplayName 	指定服务名称，有多个mongodb服务时执行。
+	--install 				指定作为一个Windows服务安装。
+4 MongoDB后台管理 Shell
+  命令行模式执行 D:\Program Files\MongoDB\Server\3.4\bin\mongod
+  当你进入mongoDB后台后，它默认会链接到 test 文档（数据库）
+5 安装php扩展 http://www.runoob.com/mongodb/mongodb-install-php-driver.html
+  我的系统虽然是64位的 但因为php安装的是32位的所以扩展也适用32位的
+  Github上已经提供了用于window平台的预编译php mongodb驱动二进制包(下载地址： https://s3.amazonaws.com/drivers.mongodb.org/php/index.html)，你可以下载与你php对应的版本，但是你需要注意以下几点问题：
+    VC6 是运行于 Apache 服务器
+    'Thread safe'（线程安全）是运行在Apache上以模块的PHP上，如果你以CGI的模式运行PHP，请选择非线程安全模式（' non-thread safe'）。
+    VC9是运行于 IIS 服务器上。
+    下载完你需要的二进制包后，解压压缩包，将'php_mongo.dll'文件添加到你的PHP扩展目录中（ext）。ext目录通常在PHP安装目录下的ext目录。
+  打开php配置文件 php.ini 添加以下配置：
+  extension=php_mongo.dll
+  重启服务器。
+  通过浏览器访问phpinfo
+########################
+## 安装可视化管理工具 ##
+########################
+https://mongobooster.com/downloads

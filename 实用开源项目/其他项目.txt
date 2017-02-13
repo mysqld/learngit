@@ -1,0 +1,2 @@
+composer https://getcomposer.org/download/
+windows redis https://github.com/MSOpenTech/redis/releases
