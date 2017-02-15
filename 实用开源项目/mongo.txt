@@ -6,7 +6,7 @@
   例如 D:\mongodbdata\db
 3 运行
     ① 命令行模式运行 mongod.exe --dbpath c:\data\db
-	② 将MongoDB服务器作为Windows服务运行
+	② 将MongoDB服务器作为Windows服务运行(git bash)
 		mongod.exe --bind_ip 127.0.0.1 --logpath "D:\mongodbdata\mongodb.log" --logappend --dbpath "D:\mongodbdata\db" --port 27017 --serviceName "mongodbd" --serviceDisplayName "mongod" --install
 	下表为mongodb启动的参数说明：
 	参数 					描述
@@ -36,3 +36,43 @@
 ## 安装可视化管理工具 ##
 ########################
 https://mongobooster.com/downloads
+
+#######################################################################################
+## MongoDB 主从复制 mongoDB官方已经不建议使用主从模式了，替代方案是采用副本集的模式  ##
+#######################################################################################
+http://www.lanceyan.com/tech/mongodb/mongodb_cluster_1.html
+在同一台主机开两个端口来模拟多台服务器的主从
+27020 主 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --master --bind_ip 127.0.0.1 --port 27020 --dbpath "/d/mongodbdata/master" --logpath "/d/mongodbdata/log/master.log" --logappend --serviceName "mongodbd_master" --serviceDisplayName "mongodbd_master" --install
+27021 从 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --slave --source 127.0.0.1:27020 --bind_ip 127.0.0.1 --port 27021 --dbpath "/d/mongodbdata/slave" --logpath "/d/mongodbdata/log/slave.log" --logappend --serviceName "mongodbd_slave" --serviceDisplayName "mongodbd_slave" --install
+php客户端可以对27020进行读写，仅可以对27021读。命令行模式操作受阻。
+搭建了这套主从复制系统是不是就很稳健了，其实不然。。。看看这几个问题？
+    主节点挂了能否自动切换连接？目前需要手工切换。
+    主节点的写压力过大如何解决？
+    从节点每个上面的数据都是对数据库全量拷贝，从节点压力会不会过大？
+    就算对从节点路由实施路由访问策略能否做到自动扩展？
+
+#####################################################################################
+## MongoDB 副本集 mongoDB官方已经不建议使用主从模式了，替代方案是采用副本集的模式  ##
+#####################################################################################
+http://www.lanceyan.com/tech/mongodb/mongodb_repset1.html
+分别开三个端口创建副本集
+27020 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --replSet repset --bind_ip 127.0.0.1 --port 27020 --dbpath "/d/mongodbdata/replset/rep0" --logpath "/d/mongodbdata/replset/log/rep0.log" --logappend --serviceName "mongodbd_rep0" --serviceDisplayName "mongodbd_rep0" --install
+27021 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --replSet repset --bind_ip 127.0.0.1 --port 27021 --dbpath "/d/mongodbdata/replset/rep1" --logpath "/d/mongodbdata/replset/log/rep1.log" --logappend --serviceName "mongodbd_rep1" --serviceDisplayName "mongodbd_rep1" --install
+27022 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --replSet repset --bind_ip 127.0.0.1 --port 27022 --dbpath "/d/mongodbdata/replset/rep2" --logpath "/d/mongodbdata/replset/log/rep2.log" --logappend --serviceName "mongodbd_rep2" --serviceDisplayName "mongodbd_rep2" --install
+
+
+
+
+########################
+## MongoDB 分片       ##
+########################
+当MongoDB存储海量的数据时，一台机器可能不足以存储数据，也可能不足以提供可接受的读写吞吐量。这时，我们就可以通过在多台机器上分割数据，使得数据库系统能存储和处理更多的数据。
+步骤一：启动Shard Server （模拟多台服务器） 
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27020 --dbpath "/d/mongodbdata/shard/s0" --logpath "/d/mongodbdata/shard/log/s0.log" --logappend --serviceName "mongodbd_s0" --serviceDisplayName "mongod_s0" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27021 --dbpath "/d/mongodbdata/shard/s1" --logpath "/d/mongodbdata/shard/log/s1.log" --logappend --serviceName "mongodbd_s1" --serviceDisplayName "mongod_s1" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27022 --dbpath "/d/mongodbdata/shard/s2" --logpath "/d/mongodbdata/shard/log/s2.log" --logappend --serviceName "mongodbd_s2" --serviceDisplayName "mongod_s2" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27023 --dbpath "/d/mongodbdata/shard/s3" --logpath "/d/mongodbdata/shard/log/s3.log" --logappend --serviceName "mongodbd_s3" --serviceDisplayName "mongod_s3" --install
+步骤二： 启动Config Server
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27100 --dbpath "/d/mongodbdata/shard/config" --logpath "/d/mongodbdata/shard/log/config.log" --logappend --serviceName "mongodbd_config" --serviceDisplayName "mongod_config" --install
+步骤三： 启动Route Process
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongos --bind_ip 127.0.0.1 --port 40000 --configdb localhost:27100 --logpath "/d/mongodbdata/shard/log/route.log" --logappend --serviceName "mongodbd_route" --serviceDisplayName "mongod_route" --install
