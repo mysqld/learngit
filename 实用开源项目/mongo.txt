@@ -60,19 +60,189 @@ http://www.lanceyan.com/tech/mongodb/mongodb_repset1.html
 27021 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --replSet repset --bind_ip 127.0.0.1 --port 27021 --dbpath "/d/mongodbdata/replset/rep1" --logpath "/d/mongodbdata/replset/log/rep1.log" --logappend --serviceName "mongodbd_rep1" --serviceDisplayName "mongodbd_rep1" --install
 27022 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --replSet repset --bind_ip 127.0.0.1 --port 27022 --dbpath "/d/mongodbdata/replset/rep2" --logpath "/d/mongodbdata/replset/log/rep2.log" --logappend --serviceName "mongodbd_rep2" --serviceDisplayName "mongodbd_rep2" --install
 
-
-
-
+登陆被挑选为主节点的服务器
+#使用admin数据库
+use admin
+#执行初始化程序
+rs.initiate({
+	"_id" : "repset",
+	"members" : [
+		{
+			"_id" : 0,
+			"host" : "127.0.0.1:27020"
+		},
+		{
+			"_id" : 1,
+			"host" : "127.0.0.1:27021"
+		},
+		{
+			"_id" : 2,
+			"host" : "127.0.0.1:27022"
+		}
+	]
+});
+初始化的时候需要注意，可能会失败。报错为has data already, cannot initiate set
+设置副本集的时候是不允许副本节点有数据的，但mongodb首次启动会有初始化数据，我们需要把副本节点的数据库全部清空。
+在清空数据的时候还要注意，直接清空有可能会失败。因为上面的启动参数中已经设置了主从。mongodb默认是从主节点读写数据的，副本节点上不允许读。
+我们直连副本节点连读取的权限都没有更别说写了。所以我们重启从节点重启的时候去掉 --replSet repset 参数。清理完数据后再加上 --replSet repset 再次重启副本节点
+这时再次执行初始化成功
+查看副本集数据前需要执行 rs.setSlaveOk() 后才能获取本次链接的读取权限
+--replSet repset 表示这个集群的名字 我去
 ########################
 ## MongoDB 分片       ##
 ########################
-当MongoDB存储海量的数据时，一台机器可能不足以存储数据，也可能不足以提供可接受的读写吞吐量。这时，我们就可以通过在多台机器上分割数据，使得数据库系统能存储和处理更多的数据。
-步骤一：启动Shard Server （模拟多台服务器） 
-/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27020 --dbpath "/d/mongodbdata/shard/s0" --logpath "/d/mongodbdata/shard/log/s0.log" --logappend --serviceName "mongodbd_s0" --serviceDisplayName "mongod_s0" --install
-/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27021 --dbpath "/d/mongodbdata/shard/s1" --logpath "/d/mongodbdata/shard/log/s1.log" --logappend --serviceName "mongodbd_s1" --serviceDisplayName "mongod_s1" --install
-/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27022 --dbpath "/d/mongodbdata/shard/s2" --logpath "/d/mongodbdata/shard/log/s2.log" --logappend --serviceName "mongodbd_s2" --serviceDisplayName "mongod_s2" --install
-/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27023 --dbpath "/d/mongodbdata/shard/s3" --logpath "/d/mongodbdata/shard/log/s3.log" --logappend --serviceName "mongodbd_s3" --serviceDisplayName "mongod_s3" --install
-步骤二： 启动Config Server
-/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27100 --dbpath "/d/mongodbdata/shard/config" --logpath "/d/mongodbdata/shard/log/config.log" --logappend --serviceName "mongodbd_config" --serviceDisplayName "mongod_config" --install
-步骤三： 启动Route Process
-/d/Program\ Files/MongoDB/Server/3.4/bin/mongos --bind_ip 127.0.0.1 --port 40000 --configdb localhost:27100 --logpath "/d/mongodbdata/shard/log/route.log" --logappend --serviceName "mongodbd_route" --serviceDisplayName "mongod_route" --install
+1.在一台机子上实现分片和副本集的数据目录结构
+├─server0
+│  ├─config
+│  │  ├─data
+│  │  └─log
+│  ├─mongos
+│  │  └─log
+│  ├─shard1
+│  │  ├─data
+│  │  └─log
+│  ├─shard2
+│  │  ├─data
+│  │  └─log
+│  └─shard3
+│      ├─data
+│      └─log
+├─server1
+│  ├─config
+│  │  ├─data
+│  │  └─log
+│  ├─mongos
+│  │  └─log
+│  ├─shard1
+│  │  ├─data
+│  │  └─log
+│  ├─shard2
+│  │  ├─data
+│  │  └─log
+│  └─shard3
+│      ├─data
+│      └─log
+└─server2
+    ├─config
+    │  ├─data
+    │  └─log
+    ├─mongos
+    │  └─log
+    ├─shard1
+    │  ├─data
+    │  └─log
+    ├─shard2
+    │  ├─data
+    │  └─log
+    └─shard3
+        ├─data
+        └─log
+2.端口分配
+server0
+	mongos 27020 config 27021 shard1 27022 shard2 27023 shard3 27024
+server1
+	mongos 27030 config 27031 shard1 27032 shard2 27033 shard3 27034
+server2
+	mongos 27040 config 27041 shard1 27042 shard2 27043 shard3 27044
+3.在每一台服务器分别启动配置服务器。3.2之后这里要部署成一个副本集
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --configsvr --replSet repset_configsvr --bind_ip 127.0.0.1 --port 27021 --dbpath "/d/mongodbdata/server0/config/data" --logpath "/d/mongodbdata/server0/config/log/config.log" --logappend --serviceName "mongodbd_svr0_configsvr" --serviceDisplayName "mongodbd_svr0_configsvr" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --configsvr --replSet repset_configsvr --bind_ip 127.0.0.1 --port 27031 --dbpath "/d/mongodbdata/server1/config/data" --logpath "/d/mongodbdata/server1/config/log/config.log" --logappend --serviceName "mongodbd_svr1_configsvr" --serviceDisplayName "mongodbd_svr1_configsvr" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --configsvr --replSet repset_configsvr --bind_ip 127.0.0.1 --port 27041 --dbpath "/d/mongodbdata/server2/config/data" --logpath "/d/mongodbdata/server2/config/log/config.log" --logappend --serviceName "mongodbd_svr2_configsvr" --serviceDisplayName "mongodbd_svr2_configsvr" --install
+清空后面两台服务器的数据
+在主节点执行配置文件
+rs.initiate({
+	"_id" : "repset_configsvr",
+	"members" : [
+		{
+			"_id" : 0,
+			"host" : "127.0.0.1:27021"
+		},
+		{
+			"_id" : 1,
+			"host" : "127.0.0.1:27031"
+		},
+		{
+			"_id" : 2,
+			"host" : "127.0.0.1:27041"
+		}
+	]
+});
+4.在每一台服务器分别启动mongos服务器。
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongos --configdb repset_configsvr/127.0.0.1:27021,127.0.0.1:27031,127.0.0.1:27041 --bind_ip 127.0.0.1 --port 27020 --logpath "/d/mongodbdata/server0/mongos/log/mongos.log" --logappend --serviceName "mongodbd_svr0_mongos" --serviceDisplayName "mongodbd_svr0_mongos" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongos --configdb repset_configsvr/127.0.0.1:27021,127.0.0.1:27031,127.0.0.1:27041 --bind_ip 127.0.0.1 --port 27030 --logpath "/d/mongodbdata/server1/mongos/log/mongos.log" --logappend --serviceName "mongodbd_svr1_mongos" --serviceDisplayName "mongodbd_svr1_mongos" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongos --configdb repset_configsvr/127.0.0.1:27021,127.0.0.1:27031,127.0.0.1:27041 --bind_ip 127.0.0.1 --port 27040 --logpath "/d/mongodbdata/server2/mongos/log/mongos.log" --logappend --serviceName "mongodbd_svr2_mongos" --serviceDisplayName "mongodbd_svr2_mongos" --install
+5.配置各个分片的副本集。
+server0
+	mongos 27020 config 27021 shard1 27022 shard2 27023 shard3 27024
+server1
+	mongos 27030 config 27031 shard1 27032 shard2 27033 shard3 27034
+server2
+	mongos 27040 config 27041 shard1 27042 shard2 27043 shard3 27044
+第一个分片副本集 [三台服务器] 的设置
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard1 --bind_ip 127.0.0.1 --port 27022 --dbpath "/d/mongodbdata/server0/shard1/data" --logpath "/d/mongodbdata/server0/shard1/log/shard1.log" --logappend --serviceName "mongodbd_svr0_shard1" --serviceDisplayName "mongodbd_svr0_shard1" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard1 --bind_ip 127.0.0.1 --port 27032 --dbpath "/d/mongodbdata/server1/shard1/data" --logpath "/d/mongodbdata/server1/shard1/log/shard1.log" --logappend --serviceName "mongodbd_svr1_shard1" --serviceDisplayName "mongodbd_svr1_shard1" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard1 --bind_ip 127.0.0.1 --port 27042 --dbpath "/d/mongodbdata/server2/shard1/data" --logpath "/d/mongodbdata/server2/shard1/log/shard1.log" --logappend --serviceName "mongodbd_svr2_shard1" --serviceDisplayName "mongodbd_svr2_shard1" --install
+初始化副本集
+use admin
+rs.initiate({
+	_id:"shard1",
+	members:[
+		{_id:0,host:"127.0.0.1:27022"},
+		{_id:1,host:"127.0.0.1:27032"},
+		{_id:2,host:"127.0.0.1:27042",arbiterOnly:true}
+	]
+});
+
+第二个分片副本集 [三台服务器] 的设置
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard2 --bind_ip 127.0.0.1 --port 27023 --dbpath "/d/mongodbdata/server0/shard2/data" --logpath "/d/mongodbdata/server0/shard2/log/shard2.log" --logappend --serviceName "mongodbd_svr0_shard2" --serviceDisplayName "mongodbd_svr0_shard2" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard2 --bind_ip 127.0.0.1 --port 27033 --dbpath "/d/mongodbdata/server1/shard2/data" --logpath "/d/mongodbdata/server1/shard2/log/shard2.log" --logappend --serviceName "mongodbd_svr1_shard2" --serviceDisplayName "mongodbd_svr1_shard2" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard2 --bind_ip 127.0.0.1 --port 27043 --dbpath "/d/mongodbdata/server2/shard2/data" --logpath "/d/mongodbdata/server2/shard2/log/shard2.log" --logappend --serviceName "mongodbd_svr2_shard2" --serviceDisplayName "mongodbd_svr2_shard2" --install
+初始化副本集
+use admin
+rs.initiate({
+	_id:"shard2",
+	members:[
+		{_id:0,host:"127.0.0.1:27023"},
+		{_id:1,host:"127.0.0.1:27033"},
+		{_id:2,host:"127.0.0.1:27043",arbiterOnly:true}
+	]
+});
+
+第三个分片副本集 [三台服务器] 的设置
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard3 --bind_ip 127.0.0.1 --port 27024 --dbpath "/d/mongodbdata/server0/shard3/data" --logpath "/d/mongodbdata/server0/shard3/log/shard3.log" --logappend --serviceName "mongodbd_svr0_shard3" --serviceDisplayName "mongodbd_svr0_shard3" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard3 --bind_ip 127.0.0.1 --port 27034 --dbpath "/d/mongodbdata/server1/shard3/data" --logpath "/d/mongodbdata/server1/shard3/log/shard3.log" --logappend --serviceName "mongodbd_svr1_shard3" --serviceDisplayName "mongodbd_svr1_shard3" --install
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --shardsvr --replSet shard3 --bind_ip 127.0.0.1 --port 27044 --dbpath "/d/mongodbdata/server2/shard3/data" --logpath "/d/mongodbdata/server2/shard3/log/shard3.log" --logappend --serviceName "mongodbd_svr2_shard3" --serviceDisplayName "mongodbd_svr2_shard3" --install
+初始化副本集
+use admin
+rs.initiate({
+	_id:"shard3",
+	members:[
+		{_id:0,host:"127.0.0.1:27024"},
+		{_id:1,host:"127.0.0.1:27034"},
+		{_id:2,host:"127.0.0.1:27044",arbiterOnly:true}
+	]
+});
+
+6.目前搭建了mongodb配置服务器、路由服务器，各个分片服务器，不过应用程序连接到 mongos 路由服务器并不能使用分片机制，还需要在程序里设置分片配置，让分片生效。
+连接到svr0的mongo
+use admin
+db.runCommand( { addshard : "shard1/127.0.0.1:27022,127.0.0.1:27032,127.0.0.1:27042"});
+db.runCommand( { addshard : "shard2/127.0.0.1:27023,127.0.0.1:27033,127.0.0.1:27043"});
+db.runCommand( { addshard : "shard3/127.0.0.1:27024,127.0.0.1:27034,127.0.0.1:27044"});
+#查看分片服务器的配置
+db.runCommand( { listshards : 1 } );
+不用每台都设置吧
+
+7.目前配置服务、路由服务、分片服务、副本集服务都已经串联起来了，但我们的目的是希望插入数据，数据能够自动分片，就差那么一点点，一点点。。。 
+连接在mongos上，准备让指定的数据库、指定的集合分片生效。
+连接在mongos上，准备让指定的数据库、指定的集合分片生效。
+#指定testdb分片生效
+db.runCommand( { enablesharding :"testdb"});
+#指定数据库里需要分片的集合和片键
+db.runCommand( { shardcollection : "testdb.table1",key : {id: 1} } )
+我们设置testdb的 table1 表需要分片，根据 id 自动分片到 shard1 ，shard2，shard3 上面去。要这样设置是因为不是所有mongodb 的数据库和表 都需要分片！ 
+
+8.测试分片配置结果
+D:\WXMP\www\learngit\exercise\nosql\MongoDB\shard.php
+连接mongos 执行命令查看分布情况
+db.table1.stats();
