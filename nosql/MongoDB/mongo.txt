@@ -88,6 +88,11 @@ rs.initiate({
 这时再次执行初始化成功
 查看副本集数据前需要执行 rs.setSlaveOk() 后才能获取本次链接的读取权限
 --replSet repset 表示这个集群的名字 我去
+
+以副本集实例启动后
+/d/Program\ Files/MongoDB/Server/3.4/bin/mongod --bind_ip 127.0.0.1 --port 27051 --dbpath "/d/mongodbdata/server3/config/data" --logpath "/d/mongodbdata/server3/config/log/config.log" --logappend --serviceName "mongodbd_svr3_configsvr" --serviceDisplayName "mongodbd_svr3_configsvr" --install
+使用 rs.add(HOST_NAME:PORT) 添加副本集
+使用 rs.remove(HOST_NAME:PORT) 删除副本集
 ########################
 ## MongoDB 分片       ##
 ########################
@@ -148,8 +153,9 @@ server2
 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --configsvr --replSet repset_configsvr --bind_ip 127.0.0.1 --port 27021 --dbpath "/d/mongodbdata/server0/config/data" --logpath "/d/mongodbdata/server0/config/log/config.log" --logappend --serviceName "mongodbd_svr0_configsvr" --serviceDisplayName "mongodbd_svr0_configsvr" --install
 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --configsvr --replSet repset_configsvr --bind_ip 127.0.0.1 --port 27031 --dbpath "/d/mongodbdata/server1/config/data" --logpath "/d/mongodbdata/server1/config/log/config.log" --logappend --serviceName "mongodbd_svr1_configsvr" --serviceDisplayName "mongodbd_svr1_configsvr" --install
 /d/Program\ Files/MongoDB/Server/3.4/bin/mongod --configsvr --replSet repset_configsvr --bind_ip 127.0.0.1 --port 27041 --dbpath "/d/mongodbdata/server2/config/data" --logpath "/d/mongodbdata/server2/config/log/config.log" --logappend --serviceName "mongodbd_svr2_configsvr" --serviceDisplayName "mongodbd_svr2_configsvr" --install
-清空后面两台服务器的数据
+挑一台作为主节点，清空副本节点的数据
 在主节点执行配置文件
+use admin
 rs.initiate({
 	"_id" : "repset_configsvr",
 	"members" : [
@@ -234,7 +240,6 @@ db.runCommand( { listshards : 1 } );
 不用每台都设置吧
 
 7.目前配置服务、路由服务、分片服务、副本集服务都已经串联起来了，但我们的目的是希望插入数据，数据能够自动分片，就差那么一点点，一点点。。。 
-连接在mongos上，准备让指定的数据库、指定的集合分片生效。
 连接在mongos上，准备让指定的数据库、指定的集合分片生效。
 #指定testdb分片生效
 db.runCommand( { enablesharding :"testdb"});
